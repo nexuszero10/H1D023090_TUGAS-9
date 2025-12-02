@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:pertemuan_10_toko_api/bloc/produk_bloc.dart';
 import 'package:pertemuan_10_toko_api/model/produk.dart';
 import 'package:pertemuan_10_toko_api/ui/produk_form.dart';
+import 'package:pertemuan_10_toko_api/ui/produk_page.dart';
+import 'package:pertemuan_10_toko_api/widget/warning_dialog.dart';
 
 // ignore: must_be_immutable
 class ProdukDetail extends StatefulWidget {
   Produk? produk;
-
   ProdukDetail({Key? key, this.produk}) : super(key: key);
 
   @override
@@ -15,37 +17,26 @@ class ProdukDetail extends StatefulWidget {
 class _ProdukDetailState extends State<ProdukDetail> {
   @override
   Widget build(BuildContext context) {
-    final produk = widget.produk;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detail Produk Tansah'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: produk == null
-            ? const Center(child: Text('Produk tidak ditemukan'))
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Kode : ${produk.kodeProduk}",
-                    style: const TextStyle(fontSize: 20.0),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Nama : ${produk.namaProduk}",
-                    style: const TextStyle(fontSize: 18.0),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Harga : Rp. ${produk.hargaProduk}",
-                    style: const TextStyle(fontSize: 18.0),
-                  ),
-                  const SizedBox(height: 20),
-                  _tombolHapusEdit(),
-                ],
-              ),
+      appBar: AppBar(title: const Text('Detail Produk')),
+      body: Center(
+        child: Column(
+          children: [
+            Text(
+              "Kode : ${widget.produk!.kodeProduk}",
+              style: const TextStyle(fontSize: 20.0),
+            ),
+            Text(
+              "Nama : ${widget.produk!.namaProduk}",
+              style: const TextStyle(fontSize: 18.0),
+            ),
+            Text(
+              "Harga : Rp. ${widget.produk!.hargaProduk.toString()}",
+              style: const TextStyle(fontSize: 18.0),
+            ),
+            _tombolHapusEdit(),
+          ],
+        ),
       ),
     );
   }
@@ -57,24 +48,15 @@ class _ProdukDetailState extends State<ProdukDetail> {
         // Tombol Edit
         OutlinedButton(
           child: const Text("EDIT"),
-          onPressed: () async {
-            // buka form edit dan tunggu hasil (mis. produk terupdate)
-            final result = await Navigator.push(
+          onPressed: () {
+            Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ProdukForm(produk: widget.produk),
+                builder: (context) => ProdukForm(produk: widget.produk!),
               ),
             );
-
-            // jika form mengembalikan produk yang diupdate, perbarui tampilan
-            if (result is Produk) {
-              setState(() {
-                widget.produk = result;
-              });
-            }
           },
         ),
-        const SizedBox(width: 10),
         // Tombol Hapus
         OutlinedButton(
           child: const Text("DELETE"),
@@ -85,35 +67,37 @@ class _ProdukDetailState extends State<ProdukDetail> {
   }
 
   void confirmHapus() {
-    showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          content: const Text("Yakin ingin menghapus data ini?"),
-          actions: [
-            TextButton(
-              child: const Text("Batal"),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            TextButton(
-              child: const Text("Ya"),
-              onPressed: () {
-                // Tutup dialog dan kirim true untuk menandakan konfirmasi hapus
-                Navigator.of(context).pop(true);
+    AlertDialog alertDialog = AlertDialog(
+      content: const Text("Yakin ingin menghapus data ini?"),
+      actions: [
+        //tombol hapus
+        OutlinedButton(
+          child: const Text("Ya"),
+          onPressed: () {
+            ProdukBloc.deleteProduk(id: int.parse(widget.produk!.id!)).then(
+              (value) => {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const ProdukPage()),
+                ),
               },
-            ),
-          ],
-        );
-      },
-    ).then((confirmed) {
-      if (confirmed == true) {
-        // Kembalikan hasil ke halaman sebelumnya supaya halaman list bisa menjalankan penghapusan nyata (API / local)
-        Navigator.of(context).pop(true);
-        // Opsional: tampilkan SnackBar sementara sebelum kembali
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Data dihapus (konfirmasi dikirim).')),
-        );
-      }
-    });
+              onError: (error) {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) => const WarningDialog(
+                    description: "Hapus gagal, silahkan coba lagi",
+                  ),
+                );
+              },
+            );
+          },
+        ),
+        //tombol batal
+        OutlinedButton(
+          child: const Text("Batal"),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ],
+    );
+    showDialog(builder: (context) => alertDialog, context: context);
   }
 }
